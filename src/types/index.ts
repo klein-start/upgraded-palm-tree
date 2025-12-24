@@ -49,3 +49,9 @@ export interface CameraOptions {
   height: number;
   facingMode: 'user' | 'environment';
 }
+
+export interface CameraError {
+  type: 'permission' | 'notFound' | 'inUse' | 'constraint' | 'notSupported' | 'security' | 'unknown';
+  message: string;
+  userMessage: string;
+}

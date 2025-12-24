@@ -3,6 +3,7 @@ import { CanvasContainer, CanvasContainerHandle } from './components/CanvasConta
 import { ControlPanel } from './components/ControlPanel';
 import { FPSMonitor } from './components/FPSMonitor';
 import { CameraView } from './components/CameraView';
+import { CameraPermissionPrompt } from './components/CameraPermissionPrompt';
 import { useCamera } from './hooks/useCamera';
 import { useFPS } from './hooks/useFPS';
 import { useAnimationFrame } from './hooks/useAnimationFrame';
@@ -13,7 +14,7 @@ import { HandGesture } from './types';
 
 function App() {
   const [isRunning, setIsRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<string | null>(null);
   const [particleCount, setParticleCount] = useState(0);
 
   const canvasRef = useRef<CanvasContainerHandle>(null);
@@ -21,7 +22,13 @@ function App() {
   const gestureDetectorRef = useRef<GestureDetector>(new GestureDetector());
   const gesturesRef = useRef<HandGesture[]>([]);
 
-  const { videoRef, isReady: isCameraReady, error: cameraError } = useCamera({
+  const {
+    videoRef,
+    isReady: isCameraReady,
+    isRequesting: isCameraRequesting,
+    error: cameraError,
+    requestPermission: requestCameraPermission,
+  } = useCamera({
     width: 1280,
     height: 720,
     facingMode: 'user',
@@ -31,7 +38,10 @@ function App() {
 
   useEffect(() => {
     if (cameraError) {
-      setError(cameraError);
+      console.group('[Camera] UI error');
+      console.log('type:', cameraError.type);
+      console.log('message:', cameraError.message);
+      console.groupEnd();
     }
   }, [cameraError]);
 
@@ -43,12 +53,12 @@ function App() {
     const initGestureDetector = async () => {
       try {
         await detector.initialize();
-        
+
         detector.onResults((gestures) => {
           gesturesRef.current = gestures;
         });
       } catch (err) {
-        setError('手势识别初始化失败');
+        setAppError('手势识别初始化失败');
         console.error(err);
       }
     };
@@ -115,17 +125,21 @@ function App() {
     renderFrame();
   }, isRunning);
 
-  const handleStart = () => {
+  const handleStart = useCallback(() => {
     if (isCameraReady) {
       setIsRunning(true);
-      setError(null);
+      setAppError(null);
     }
-  };
+  }, [isCameraReady]);
 
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     setIsRunning(false);
     particleSystemRef.current.clear();
-  };
+  }, []);
+
+  const handleRequestPermission = useCallback(() => {
+    requestCameraPermission();
+  }, [requestCameraPermission]);
 
   return (
     <div style={styles.app}>
@@ -142,11 +156,22 @@ function App() {
         isCameraReady={isCameraReady}
         onStart={handleStart}
         onStop={handleStop}
-        error={error}
+        onRequestCameraPermission={handleRequestPermission}
+        appError={appError}
+        cameraError={cameraError}
       />
 
       {isRunning && (
         <FPSMonitor fps={fps} particleCount={particleCount} />
+      )}
+
+      {!isCameraReady && (
+        <CameraPermissionPrompt
+          error={cameraError}
+          isRequesting={isCameraRequesting}
+          onRequest={handleRequestPermission}
+          onRetry={handleRequestPermission}
+        />
       )}
     </div>
   );
