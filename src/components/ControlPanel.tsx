@@ -1,11 +1,14 @@
 import React from 'react';
+import { CameraError } from '@/types';
 
 interface ControlPanelProps {
   isRunning: boolean;
   isCameraReady: boolean;
   onStart: () => void;
   onStop: () => void;
-  error?: string | null;
+  onRequestCameraPermission: () => void;
+  appError?: string | null;
+  cameraError?: CameraError | null;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -13,7 +16,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   isCameraReady,
   onStart,
   onStop,
-  error,
+  onRequestCameraPermission,
+  appError,
+  cameraError,
 }) => {
   return (
     <div style={styles.container}>
@@ -42,14 +47,46 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
 
-        {error && (
+        {cameraError && (
           <div style={styles.error}>
-            ⚠️ {error}
+            <div style={styles.errorTitle}>📹 摄像头错误</div>
+            <div style={styles.errorMessage}>{cameraError.userMessage}</div>
+            <div style={styles.errorDetails}>错误类型: {cameraError.type}</div>
+            <div style={styles.errorDetails}>技术信息: {cameraError.message}</div>
+            {cameraError.type === 'permission' && (
+              <div style={styles.errorHint}>
+                💡 点击下方"重新请求权限"按钮，或在浏览器地址栏中检查权限设置
+              </div>
+            )}
+          </div>
+        )}
+
+        {appError && !cameraError && (
+          <div style={styles.error}>
+            ⚠️ {appError}
+          </div>
+        )}
+
+        {!isCameraReady && !cameraError && (
+          <div style={styles.info}>
+            <div style={styles.infoIcon}>🔄</div>
+            <div>正在初始化摄像头...</div>
+            <div style={styles.infoHint}>首次使用时，浏览器会弹出权限请求提示</div>
           </div>
         )}
 
         <div style={styles.controls}>
-          {!isRunning ? (
+          {cameraError ? (
+            <button
+              onClick={onRequestCameraPermission}
+              style={{
+                ...styles.button,
+                ...styles.retryButton
+              }}
+            >
+              🔄 重新请求权限
+            </button>
+          ) : !isRunning ? (
             <button
               onClick={onStart}
               disabled={!isCameraReady}
@@ -132,6 +169,44 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '16px',
     fontSize: '14px',
   },
+  errorTitle: {
+    fontWeight: 'bold',
+    marginBottom: '6px',
+  },
+  errorMessage: {
+    lineHeight: 1.5,
+    marginBottom: '6px',
+  },
+  errorDetails: {
+    fontSize: '11px',
+    color: '#A00000',
+    marginBottom: '4px',
+    fontFamily: 'monospace',
+  },
+  errorHint: {
+    marginTop: '8px',
+    fontSize: '12px',
+    color: '#8E0000',
+    lineHeight: 1.4,
+  },
+  info: {
+    background: '#E3F2FD',
+    color: '#1565C0',
+    padding: '10px',
+    borderRadius: '6px',
+    marginBottom: '16px',
+    fontSize: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  infoIcon: {
+    fontWeight: 'bold',
+  },
+  infoHint: {
+    fontSize: '12px',
+    color: '#1976D2',
+  },
   controls: {
     marginBottom: '16px',
   },
@@ -151,6 +226,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   stopButton: {
     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    color: 'white',
+  },
+  retryButton: {
+    background: 'linear-gradient(135deg, #FFA726 0%, #FB8C00 100%)',
     color: 'white',
   },
   buttonDisabled: {
